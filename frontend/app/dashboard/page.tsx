@@ -1,4 +1,7 @@
-// app/dashboard/page.tsx
+"use client";
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import StatCard from '@/app/dashboard/StatCard';
 import ActivityTimeline from '@/app/dashboard/ActivityTimeline';
 import BorrowingChart from '@/app/dashboard/BorrowingChart';
@@ -7,9 +10,10 @@ import OverdueBooksTable from '@/app/dashboard/OverdueBooksTable';
 import PopularBooksCarousel from '@/app/dashboard/PopularBooksCarousel';
 import QuickActions from '@/app/dashboard/QuickAction';
 import SystemHealth from '@/app/dashboard/SystemHealth';
+import { bookAPI, reportAPI, transactionAPI, memberAPI, aiAPI } from '@/lib/api';
 
 // Mock data
-const dashboardStats = [
+const MOCK_STATS = [
   { id: 1, title: "Total Books", value: "12,456", icon: "📚", trend: { value: '8.2%', isPositive: true }, color: "blue" },
   { id: 2, title: "Active Members", value: "2,345", icon: "👥", trend: { value: '12.5%', isPositive: true }, color: "green" },
   { id: 3, title: "Books Borrowed Today", value: "156", icon: "📖", trend: { value: '5.3%', isPositive: true }, color: "purple" },
@@ -20,7 +24,7 @@ const dashboardStats = [
   { id: 8, title: "Reservations", value: "45", icon: "📌", trend: { value: '7.8%', isPositive: true }, color: "orange" },
 ];
 
-const recentActivities = [
+const MOCK_ACTIVITIES = [
   { id: 1, user: "John Doe", action: "borrowed", book: "The Great Gatsby", time: "10 min ago", type: "borrow" },
   { id: 2, user: "Jane Smith", action: "returned", book: "1984", time: "25 min ago", type: "return" },
   { id: 3, user: "Admin", action: "added new book", book: "Deep Learning", time: "1 hour ago", type: "add" },
@@ -29,7 +33,7 @@ const recentActivities = [
   { id: 6, user: "System", action: "sent overdue reminders", count: "15 members", time: "4 hours ago", type: "system" },
 ];
 
-const overdueBooks = [
+const MOCK_OVERDUE = [
   { id: 1, title: "The Catcher in the Rye", member: "John Doe", dueDate: "2024-01-20", daysOverdue: 5, fine: "₹50" },
   { id: 2, title: "Pride and Prejudice", member: "Jane Smith", dueDate: "2024-01-22", daysOverdue: 3, fine: "₹30" },
   { id: 3, title: "To Kill a Mockingbird", member: "Bob Johnson", dueDate: "2024-01-18", daysOverdue: 7, fine: "₹70" },
@@ -37,7 +41,7 @@ const overdueBooks = [
   { id: 5, title: "1984", member: "Charlie Wilson", dueDate: "2024-01-25", daysOverdue: 0, fine: "₹0" },
 ];
 
-const popularBooks = [
+const MOCK_POPULAR = [
   { id: 1, title: "Python Programming", author: "John Doe", borrows: 145, coverColor: "bg-blue-100", textColor: "text-blue-600" },
   { id: 2, title: "Data Structures", author: "Jane Smith", borrows: 128, coverColor: "bg-green-100", textColor: "text-green-600" },
   { id: 3, title: "Machine Learning", author: "Bob Johnson", borrows: 112, coverColor: "bg-purple-100", textColor: "text-purple-600" },
@@ -55,6 +59,107 @@ const quickActions = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [overdueBooks, setOverdueBooks] = useState<any[]>([]);
+  const [popularBooks, setPopularBooks] = useState<any[]>([]);
+  const [aiInsights, setAiInsights] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check for authentication token before fetching
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    fetchDashboardData();
+  }, [router]);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      const [
+        booksData,
+        membersData,
+        overdueData,
+        popularData,
+        reportsData,
+      ] = await Promise.all([
+        bookAPI.getBooks({ page_size: 1 }),
+        memberAPI.getMembers(1, 1),
+        transactionAPI.getOverdue() as Promise<any>,
+        reportAPI.getPopularBooks(5),
+        reportAPI.getBorrowingReport(),
+      ]);
+
+      // Map stats
+      setStats([
+        { id: 1, title: "Total Books", value: booksData.total.toLocaleString(), icon: "📚", trend: { value: '8.2%', isPositive: true }, color: "blue" },
+        { id: 2, title: "Active Members", value: membersData.total.toLocaleString(), icon: "👥", trend: { value: '12.5%', isPositive: true }, color: "green" },
+        { id: 3, title: "Books Borrowed", value: reportsData.total_borrows?.toString() || "0", icon: "📖", trend: { value: '5.3%', isPositive: true }, color: "purple" },
+        { id: 4, title: "Overdue Books", value: overdueData.overdue_books_count?.toString() || "0", icon: "⏰", trend: { value: '2.1%', isPositive: false }, color: "red" },
+      ]);
+
+      setOverdueBooks(overdueData.overdue_books?.map((b: any) => ({
+        id: b.transaction_id,
+        title: b.book_title,
+        member: b.member_name,
+        dueDate: b.due_date,
+        daysOverdue: b.days_overdue,
+        fine: `₹${b.fine_amount}`
+      })) || []);
+
+      setPopularBooks(popularData.map((b: any) => ({
+        id: b.id,
+        title: b.title,
+        author: b.author,
+        borrows: b.borrow_count,
+        coverColor: "bg-blue-100",
+        textColor: "text-blue-600"
+      })));
+
+      // Mock activities as backend doesn't have a direct "recent activities" endpoint yet
+      setRecentActivities([
+        { id: 1, user: "System", action: "synchronized", book: "Database", time: "Just now", type: "system" },
+        { id: 2, user: "Admin", action: "logged in", time: "5 min ago", type: "login" }
+      ]);
+
+      setAiInsights([
+        "Trending: Computer Science books",
+        "Recommendation: Increase sci-fi collection"
+      ]);
+
+      setError(null);
+    } catch (err: any) {
+      console.error("Dashboard fetch error:", err);
+      if (err.message.includes("401") || err.message.includes("Not authenticated")) {
+        router.push('/login');
+      } else {
+        setError("Failed to load dashboard data. Showing simulation data.");
+        // Fallback to mock data on error so UI doesn't look broken
+        setStats(MOCK_STATS.slice(0, 4));
+        setOverdueBooks(MOCK_OVERDUE.slice(0, 3));
+        setPopularBooks(MOCK_POPULAR);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-xl font-semibold animate-pulse text-blue-600">
+          Loading Dashboard Data...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -80,7 +185,7 @@ export default function DashboardPage() {
 
       {/* Stats Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {dashboardStats.map(stat => (
+        {stats.map(stat => (
           <StatCard key={stat.id} {...stat} />
         ))}
       </div>
@@ -204,18 +309,12 @@ export default function DashboardPage() {
             </div>
             <p className="text-sm opacity-90 mb-3">Based on recent patterns:</p>
             <ul className="text-sm space-y-2">
-              <li className="flex items-start">
-                <span className="mr-2">📈</span>
-                <span>Computer Science books borrows increased by 25% this week</span>
-              </li>
-              <li className="flex items-start">
-                <span className="mr-2">👥</span>
-                <span>New member registrations peak on Mondays</span>
-              </li>
-              <li className="flex items-start">
-                <span className="mr-2">💰</span>
-                <span>Consider adding more Data Science books - high demand</span>
-              </li>
+              {aiInsights.map((insight, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="mr-2">💡</span>
+                  <span>{insight}</span>
+                </li>
+              ))}
             </ul>
           </div>
         </div>

@@ -17,17 +17,25 @@ interface PopularBooksCarouselProps {
 
 export default function PopularBooksCarousel({ books }: PopularBooksCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  
+
+  if (!books || books.length === 0) {
+    return (
+      <div className="bg-white/10 rounded-lg p-6 text-center">
+        <p className="text-white opacity-70 italic text-sm">No popular books found.</p>
+      </div>
+    );
+  }
+
   const nextBook = () => {
     setCurrentIndex((prev) => (prev + 1) % books.length);
   };
-  
+
   const prevBook = () => {
     setCurrentIndex((prev) => (prev - 1 + books.length) % books.length);
   };
-  
+
   const currentBook = books[currentIndex];
-  
+
   return (
     <div className="relative">
       <div className={`${currentBook.coverColor} rounded-lg p-6 mb-4 transition-all duration-300`}>
@@ -44,7 +52,7 @@ export default function PopularBooksCarousel({ books }: PopularBooksCarouselProp
         <div className="flex items-center">
           <div className="flex-1">
             <div className={`h-2 ${currentBook.textColor} opacity-30 rounded-full overflow-hidden`}>
-              <div 
+              <div
                 className="h-full bg-current opacity-100 rounded-full"
                 style={{ width: '85%' }}
               />
@@ -52,16 +60,15 @@ export default function PopularBooksCarousel({ books }: PopularBooksCarouselProp
           </div>
         </div>
       </div>
-      
+
       <div className="flex justify-between items-center">
         <div className="flex space-x-2">
           {books.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentIndex(index)}
-              className={`w-2 h-2 rounded-full ${
-                index === currentIndex ? 'bg-white' : 'bg-white/50'
-              }`}
+              className={`w-2 h-2 rounded-full ${index === currentIndex ? 'bg-white' : 'bg-white/50'
+                }`}
             />
           ))}
         </div>

@@ -2,7 +2,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { searchAPI } from '@/lib/api';
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,10 +40,18 @@ export default function SearchPage() {
   });
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const router = useRouter();
+
   // Focus search input on mount
   useEffect(() => {
+    // Auth Check
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) {
+      router.push('/login');
+      return;
+    }
     searchInputRef.current?.focus();
-  }, []);
+  }, [router]);
 
   // Check for dark mode preference
   useEffect(() => {
@@ -117,104 +127,49 @@ export default function SearchPage() {
   };
 
   // Perform search
-  const performSearch = (query: string) => {
+  const performSearch = async (query: string) => {
     if (!query.trim()) {
       setSearchResults({ books: [], members: [], ebooks: [], reservations: [], total: 0 });
       return;
     }
 
     setIsSearching(true);
-    
-    // Simulate API delay
-    setTimeout(() => {
-      const queryLower = query.toLowerCase();
-      let results: any = {
-        books: [],
-        members: [],
+
+    try {
+      const data = await searchAPI.semanticSearch(query);
+
+      // Map API data to UI format
+      const mappedBooks = data.books.map((book: any) => ({
+        id: book.id,
+        type: 'book',
+        title: book.title,
+        author: book.author,
+        category: book.category,
+        year: book.publication_year,
+        isbn: book.isbn,
+        status: book.available_copies > 0 ? 'Available' : 'Borrowed',
+        copies: book.total_copies,
+        location: 'Main Hall',
+        rating: 4.5
+      }));
+
+      setSearchResults({
+        books: mappedBooks,
+        members: [], // Placeholder as we don't have member search yet
         ebooks: [],
         reservations: [],
-        total: 0
-      };
-
-      // Search in books
-      if (searchType === 'all' || searchType === 'books') {
-        results.books = mockData.books.filter(item => 
-          item.title.toLowerCase().includes(queryLower) ||
-          item.author.toLowerCase().includes(queryLower) ||
-          item.category.toLowerCase().includes(queryLower) ||
-          item.isbn.includes(query) ||
-          item.year.toString().includes(query)
-        );
-      }
-
-      // Search in members
-      if (searchType === 'all' || searchType === 'members') {
-        results.members = mockData.members.filter(item => 
-          item.name.toLowerCase().includes(queryLower) ||
-          item.email.toLowerCase().includes(queryLower) ||
-          item.membershipId.toLowerCase().includes(queryLower) ||
-          item.phone.includes(query)
-        );
-      }
-
-      // Search in ebooks
-      if (searchType === 'all' || searchType === 'ebooks') {
-        results.ebooks = mockData.ebooks.filter(item => 
-          item.title.toLowerCase().includes(queryLower) ||
-          item.author.toLowerCase().includes(queryLower) ||
-          item.category.toLowerCase().includes(queryLower) ||
-          item.format.toLowerCase().includes(queryLower)
-        );
-      }
-
-      // Search in reservations
-      if (searchType === 'all' || searchType === 'reservations') {
-        results.reservations = mockData.reservations.filter(item => 
-          item.member.toLowerCase().includes(queryLower) ||
-          item.book.toLowerCase().includes(queryLower) ||
-          item.memberId.toLowerCase().includes(queryLower) ||
-          item.status.toLowerCase().includes(queryLower)
-        );
-      }
-
-      // Apply filters
-      if (filters.status !== 'any') {
-        if (searchType === 'all' || searchType === 'books') {
-          results.books = results.books.filter((item: any) => item.status === filters.status);
-        }
-        if (searchType === 'all' || searchType === 'reservations') {
-          results.reservations = results.reservations.filter((item: any) => item.status === filters.status);
-        }
-        if (searchType === 'all' || searchType === 'members') {
-          results.members = results.members.filter((item: any) => item.status === filters.status);
-        }
-      }
-
-      if (filters.year !== 'any') {
-        if (searchType === 'all' || searchType === 'books') {
-          results.books = results.books.filter((item: any) => item.year.toString() === filters.year);
-        }
-      }
-
-      if (filters.category !== 'any') {
-        if (searchType === 'all' || searchType === 'books') {
-          results.books = results.books.filter((item: any) => item.category === filters.category);
-        }
-        if (searchType === 'all' || searchType === 'ebooks') {
-          results.ebooks = results.ebooks.filter((item: any) => item.category === filters.category);
-        }
-      }
-
-      results.total = results.books.length + results.members.length + results.ebooks.length + results.reservations.length;
-      
-      setSearchResults(results);
-      setIsSearching(false);
+        total: mappedBooks.length
+      });
 
       // Add to recent searches
       if (!recentSearches.some(s => s.term === query.toLowerCase())) {
-        setRecentSearches(prev => [{ term: query.toLowerCase(), type: searchType, count: results.total }, ...prev.slice(0, 4)]);
+        setRecentSearches(prev => [{ term: query.toLowerCase(), type: searchType, count: mappedBooks.length }, ...prev.slice(0, 4)]);
       }
-    }, 500);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   // Handle search submission
@@ -267,7 +222,7 @@ export default function SearchPage() {
 
   // Get type icon
   const getTypeIcon = (type: string) => {
-    switch(type) {
+    switch (type) {
       case 'book': return '📚';
       case 'member': return '👤';
       case 'ebook': return '📱';
@@ -278,7 +233,7 @@ export default function SearchPage() {
 
   // Get view link
   const getViewLink = (type: string, id: number) => {
-    switch(type) {
+    switch (type) {
       case 'book': return `/books/${id}`;
       case 'member': return `/members/${id}`;
       case 'ebook': return `/ebooks/${id}`;
@@ -289,7 +244,7 @@ export default function SearchPage() {
 
   // Get status color
   const getStatusColor = (status: string) => {
-    switch(status?.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'available':
       case 'active':
       case 'ready':
@@ -393,11 +348,11 @@ export default function SearchPage() {
       boxShadow: `0 8px 30px ${colors.overlay}`,
       marginBottom: '40px',
       border: `1px solid ${colors.border}`,
-      position: 'relative',
+      position: 'relative' as const,
       overflow: 'hidden',
     },
     searchBackground: {
-      position: 'absolute',
+      position: 'absolute' as const,
       top: 0,
       right: 0,
       bottom: 0,
@@ -406,7 +361,7 @@ export default function SearchPage() {
       opacity: 0.3,
     },
     searchBox: {
-      position: 'relative',
+      position: 'relative' as const,
       maxWidth: '800px',
       margin: '0 auto 24px',
     },
@@ -422,7 +377,7 @@ export default function SearchPage() {
       boxShadow: `0 4px 12px ${colors.overlay}`,
     },
     searchIcon: {
-      position: 'absolute',
+      position: 'absolute' as const,
       left: '24px',
       top: '50%',
       transform: 'translateY(-50%)',
@@ -430,7 +385,7 @@ export default function SearchPage() {
       color: colors.primary,
     },
     clearButton: {
-      position: 'absolute',
+      position: 'absolute' as const,
       right: '130px',
       top: '50%',
       transform: 'translateY(-50%)',
@@ -444,7 +399,7 @@ export default function SearchPage() {
       transition: 'opacity 0.2s',
     },
     searchButton: {
-      position: 'absolute',
+      position: 'absolute' as const,
       right: '8px',
       top: '50%',
       transform: 'translateY(-50%)',
@@ -844,7 +799,7 @@ export default function SearchPage() {
         {/* Search Section */}
         <div style={styles.searchSection}>
           <div style={styles.searchBackground}></div>
-          
+
           <form onSubmit={handleSearch}>
             <div style={styles.searchBox}>
               <div style={styles.searchIcon}>🔍</div>
@@ -858,7 +813,7 @@ export default function SearchPage() {
                 style={styles.searchInput}
               />
               {searchQuery && (
-                <button 
+                <button
                   type="button"
                   onClick={clearSearch}
                   style={styles.clearButton}
@@ -900,7 +855,7 @@ export default function SearchPage() {
 
           {/* Filter Toggle */}
           <div style={{ textAlign: 'center' }}>
-            <button 
+            <button
               type="button"
               onClick={() => setShowFilters(!showFilters)}
               style={styles.filterButton}
@@ -913,7 +868,7 @@ export default function SearchPage() {
           {showFilters && (
             <div style={styles.filtersPanel}>
               <div style={styles.quickActions}>
-                <button 
+                <button
                   type="button"
                   onClick={resetFilters}
                   style={styles.actionButton}
@@ -934,7 +889,7 @@ export default function SearchPage() {
                   <div style={styles.filterOptions}>
                     <button
                       type="button"
-                      onClick={() => setFilters({...filters, status: 'any'})}
+                      onClick={() => setFilters({ ...filters, status: 'any' })}
                       style={{
                         ...styles.filterOption,
                         ...(filters.status === 'any' ? styles.activeFilter : {})
@@ -946,7 +901,7 @@ export default function SearchPage() {
                       <button
                         key={status}
                         type="button"
-                        onClick={() => setFilters({...filters, status})}
+                        onClick={() => setFilters({ ...filters, status })}
                         style={{
                           ...styles.filterOption,
                           ...(filters.status === status ? {
@@ -967,7 +922,7 @@ export default function SearchPage() {
                   <div style={styles.filterOptions}>
                     <button
                       type="button"
-                      onClick={() => setFilters({...filters, year: 'any'})}
+                      onClick={() => setFilters({ ...filters, year: 'any' })}
                       style={{
                         ...styles.filterOption,
                         ...(filters.year === 'any' ? styles.activeFilter : {})
@@ -979,7 +934,7 @@ export default function SearchPage() {
                       <button
                         key={year}
                         type="button"
-                        onClick={() => setFilters({...filters, year})}
+                        onClick={() => setFilters({ ...filters, year })}
                         style={{
                           ...styles.filterOption,
                           ...(filters.year === year ? styles.activeFilter : {})
@@ -996,7 +951,7 @@ export default function SearchPage() {
                   <div style={styles.filterOptions}>
                     <button
                       type="button"
-                      onClick={() => setFilters({...filters, category: 'any'})}
+                      onClick={() => setFilters({ ...filters, category: 'any' })}
                       style={{
                         ...styles.filterOption,
                         ...(filters.category === 'any' ? styles.activeFilter : {})
@@ -1008,7 +963,7 @@ export default function SearchPage() {
                       <button
                         key={category}
                         type="button"
-                        onClick={() => setFilters({...filters, category})}
+                        onClick={() => setFilters({ ...filters, category })}
                         style={{
                           ...styles.filterOption,
                           ...(filters.category === category ? styles.activeFilter : {})
@@ -1063,7 +1018,7 @@ export default function SearchPage() {
                     style={styles.trendingItem}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ 
+                      <span style={{
                         fontSize: '0.875rem',
                         color: getTypeColor(item.type),
                         backgroundColor: `${getTypeColor(item.type)}20`,
@@ -1096,7 +1051,7 @@ export default function SearchPage() {
             <div style={styles.resultsHeader}>
               <h2 style={styles.resultsTitle}>
                 🔍 Search Results
-                <span style={{ 
+                <span style={{
                   fontSize: '0.9375rem',
                   fontWeight: 'normal',
                   color: colors.textSecondary,
@@ -1105,7 +1060,7 @@ export default function SearchPage() {
                 </span>
               </h2>
               <div style={styles.resultsCount}>
-                <span style={{ 
+                <span style={{
                   backgroundColor: colors.primary,
                   color: 'white',
                   padding: '4px 12px',
@@ -1134,7 +1089,7 @@ export default function SearchPage() {
                           <h4 style={styles.resultCardTitle}>{book.title}</h4>
                           <p style={styles.resultCardSubtitle}>by {book.author}</p>
                         </div>
-                        <span style={{ 
+                        <span style={{
                           ...styles.statusBadge,
                           backgroundColor: `${getStatusColor(book.status)}20`,
                           color: getStatusColor(book.status),
@@ -1143,21 +1098,21 @@ export default function SearchPage() {
                         </span>
                       </div>
                       <div style={styles.resultCardMeta}>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: `${colors.book}20`,
                           color: colors.book,
                         }}>
                           {book.category}
                         </span>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                           color: colors.textSecondary,
                         }}>
                           {book.year}
                         </span>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                           color: colors.textSecondary,
@@ -1169,7 +1124,7 @@ export default function SearchPage() {
                         <div style={{ fontSize: '0.875rem', color: colors.textSecondary }}>
                           📍 {book.location} • 📊 {book.copies} copies
                         </div>
-                        <span style={{ 
+                        <span style={{
                           ...styles.viewButton,
                           borderColor: colors.book,
                           color: colors.book,
@@ -1199,7 +1154,7 @@ export default function SearchPage() {
                           <h4 style={styles.resultCardTitle}>{member.name}</h4>
                           <p style={styles.resultCardSubtitle}>{member.email}</p>
                         </div>
-                        <span style={{ 
+                        <span style={{
                           ...styles.statusBadge,
                           backgroundColor: `${getStatusColor(member.status)}20`,
                           color: getStatusColor(member.status),
@@ -1208,21 +1163,21 @@ export default function SearchPage() {
                         </span>
                       </div>
                       <div style={styles.resultCardMeta}>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: `${colors.member}20`,
                           color: colors.member,
                         }}>
                           ID: {member.membershipId}
                         </span>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                           color: colors.textSecondary,
                         }}>
                           {member.plan}
                         </span>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                           color: colors.textSecondary,
@@ -1234,7 +1189,7 @@ export default function SearchPage() {
                         <div style={{ fontSize: '0.875rem', color: colors.textSecondary }}>
                           📞 {member.phone} • 📚 {member.borrowed} books borrowed
                         </div>
-                        <span style={{ 
+                        <span style={{
                           ...styles.viewButton,
                           borderColor: colors.member,
                           color: colors.member,
@@ -1264,7 +1219,7 @@ export default function SearchPage() {
                           <h4 style={styles.resultCardTitle}>{ebook.title}</h4>
                           <p style={styles.resultCardSubtitle}>by {ebook.author}</p>
                         </div>
-                        <span style={{ 
+                        <span style={{
                           ...styles.statusBadge,
                           backgroundColor: ebook.available ? `${colors.success}20` : `${colors.danger}20`,
                           color: ebook.available ? colors.success : colors.danger,
@@ -1273,21 +1228,21 @@ export default function SearchPage() {
                         </span>
                       </div>
                       <div style={styles.resultCardMeta}>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: `${colors.ebook}20`,
                           color: colors.ebook,
                         }}>
                           {ebook.category}
                         </span>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                           color: colors.textSecondary,
                         }}>
                           {ebook.format}
                         </span>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                           color: colors.textSecondary,
@@ -1299,7 +1254,7 @@ export default function SearchPage() {
                         <div style={{ fontSize: '0.875rem', color: colors.textSecondary }}>
                           📄 {ebook.size} • 📥 {ebook.downloads.toLocaleString()} downloads
                         </div>
-                        <span style={{ 
+                        <span style={{
                           ...styles.viewButton,
                           borderColor: colors.ebook,
                           color: colors.ebook,
@@ -1329,7 +1284,7 @@ export default function SearchPage() {
                           <h4 style={styles.resultCardTitle}>{res.book}</h4>
                           <p style={styles.resultCardSubtitle}>Reserved by {res.member}</p>
                         </div>
-                        <span style={{ 
+                        <span style={{
                           ...styles.statusBadge,
                           backgroundColor: `${getStatusColor(res.status)}20`,
                           color: getStatusColor(res.status),
@@ -1338,14 +1293,14 @@ export default function SearchPage() {
                         </span>
                       </div>
                       <div style={styles.resultCardMeta}>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: `${colors.reservation}20`,
                           color: colors.reservation,
                         }}>
                           Member ID: {res.memberId}
                         </span>
-                        <span style={{ 
+                        <span style={{
                           ...styles.metaTag,
                           backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                           color: colors.textSecondary,
@@ -1357,7 +1312,7 @@ export default function SearchPage() {
                         <div style={{ fontSize: '0.875rem', color: colors.textSecondary }}>
                           📅 Reserved: {res.date} • 🎯 Pickup by: {res.pickupBy}
                         </div>
-                        <span style={{ 
+                        <span style={{
                           ...styles.viewButton,
                           borderColor: colors.reservation,
                           color: colors.reservation,
@@ -1376,11 +1331,11 @@ export default function SearchPage() {
             <div style={styles.emptyIcon}>🔍</div>
             <h3 style={styles.emptyTitle}>No results found for "{searchQuery}"</h3>
             <p style={styles.emptyText}>
-              We couldn't find any matches in our library database. Try adjusting your search terms, 
+              We couldn't find any matches in our library database. Try adjusting your search terms,
               using different keywords, or browse by category instead.
             </p>
             <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button 
+              <button
                 onClick={clearSearch}
                 style={{
                   padding: '14px 28px',
@@ -1398,7 +1353,7 @@ export default function SearchPage() {
               >
                 ✕ Clear Search
               </button>
-              <button 
+              <button
                 onClick={() => setSearchType('all')}
                 style={{
                   padding: '14px 28px',
@@ -1427,7 +1382,7 @@ export default function SearchPage() {
           </p>
           <div style={styles.keyboardHints}>
             <div style={styles.keyboardHint}>
-              <span style={{ 
+              <span style={{
                 backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                 padding: '4px 8px',
                 borderRadius: '6px',
@@ -1437,7 +1392,7 @@ export default function SearchPage() {
               <span>to search</span>
             </div>
             <div style={styles.keyboardHint}>
-              <span style={{ 
+              <span style={{
                 backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                 padding: '4px 8px',
                 borderRadius: '6px',
@@ -1447,7 +1402,7 @@ export default function SearchPage() {
               <span>to clear</span>
             </div>
             <div style={styles.keyboardHint}>
-              <span style={{ 
+              <span style={{
                 backgroundColor: darkMode ? '#4b5563' : '#f3f4f6',
                 padding: '4px 8px',
                 borderRadius: '6px',

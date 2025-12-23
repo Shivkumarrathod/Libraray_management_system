@@ -1,24 +1,78 @@
-// app/books/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { bookAPI } from '@/lib/api';
 import Link from 'next/link';
 
 export default function BooksPage() {
+  const [books, setBooks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [darkMode, setDarkMode] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedBooks, setSelectedBooks] = useState<number[]>([]);
+  const [selectedBooks, setSelectedBooks] = useState<any[]>([]);
   const [sortBy, setSortBy] = useState('title');
+
+  const router = useRouter();
 
   // Check for dark mode preference
   useEffect(() => {
+    // Check for authentication token
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     setDarkMode(isDark);
-  }, []);
+    fetchBooks();
+  }, [router]);
+
+  const fetchBooks = async () => {
+    try {
+      setLoading(true);
+      const data = await bookAPI.getBooks();
+
+      // Map API data to UI format
+      const mappedBooks = data.books.map((book: any) => ({
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        isbn: book.isbn,
+        genre: book.category.toLowerCase(),
+        year: book.publication_year || 'N/A',
+        publisher: book.publisher || 'N/A',
+        totalCopies: book.total_copies,
+        availableCopies: book.available_copies,
+        status: book.available_copies > 0 ? 'available' : 'unavailable',
+        rating: 4.5, // Default for UI
+        borrowCount: Math.floor(Math.random() * 200), // Mocked as not in backend
+        description: book.description || 'No description available.',
+        language: 'English',
+        pages: 300,
+        location: 'Section A',
+        coverColor: `hsl(${Math.abs(book.title.length * 40) % 360}, 70%, 60%)`, // Deterministic color
+      }));
+
+      setBooks(mappedBooks);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error fetching books:', err);
+      if (err.message.includes("401") || err.message.includes("Not authenticated")) {
+        router.push('/login');
+      } else {
+        setError(err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Color Palette
   const colors = darkMode ? {
@@ -67,252 +121,20 @@ export default function BooksPage() {
     fantasy: '#ea580c',
   };
 
-  // Mock book data
-  const mockBooks = [
-    {
-      id: 1,
-      title: 'The Great Gatsby',
-      author: 'F. Scott Fitzgerald',
-      isbn: '9780743273565',
-      genre: 'fiction',
-      year: 1925,
-      publisher: 'Scribner',
-      totalCopies: 5,
-      availableCopies: 3,
-      status: 'available',
-      rating: 4.5,
-      borrowCount: 245,
-      description: 'A classic novel of the Jazz Age exploring themes of idealism, resistance to change, social upheaval, and excess.',
-      language: 'English',
-      pages: 180,
-      location: 'Shelf A1-05',
-      coverColor: '#fbbf24',
-    },
-    {
-      id: 2,
-      title: 'To Kill a Mockingbird',
-      author: 'Harper Lee',
-      isbn: '9780061120084',
-      genre: 'fiction',
-      year: 1960,
-      publisher: 'J.B. Lippincott & Co.',
-      totalCopies: 4,
-      availableCopies: 2,
-      status: 'available',
-      rating: 4.8,
-      borrowCount: 312,
-      description: 'A novel about racial injustice and moral growth in the American South during the Great Depression.',
-      language: 'English',
-      pages: 281,
-      location: 'Shelf A1-06',
-      coverColor: '#10b981',
-    },
-    {
-      id: 3,
-      title: '1984',
-      author: 'George Orwell',
-      isbn: '9780451524935',
-      genre: 'science',
-      year: 1949,
-      publisher: 'Secker & Warburg',
-      totalCopies: 8,
-      availableCopies: 5,
-      status: 'available',
-      rating: 4.7,
-      borrowCount: 289,
-      description: 'A dystopian social science fiction novel about totalitarian surveillance and thought control.',
-      language: 'English',
-      pages: 328,
-      location: 'Shelf B2-01',
-      coverColor: '#6b7280',
-    },
-    {
-      id: 4,
-      title: 'Pride and Prejudice',
-      author: 'Jane Austen',
-      isbn: '9780141439518',
-      genre: 'romance',
-      year: 1813,
-      publisher: 'T. Egerton',
-      totalCopies: 3,
-      availableCopies: 1,
-      status: 'available',
-      rating: 4.6,
-      borrowCount: 198,
-      description: 'A romantic novel of manners that depicts the emotional development of protagonist Elizabeth Bennet.',
-      language: 'English',
-      pages: 432,
-      location: 'Shelf A2-03',
-      coverColor: '#ec4899',
-    },
-    {
-      id: 5,
-      title: 'The Catcher in the Rye',
-      author: 'J.D. Salinger',
-      isbn: '9780316769488',
-      genre: 'fiction',
-      year: 1951,
-      publisher: 'Little, Brown and Company',
-      totalCopies: 6,
-      availableCopies: 4,
-      status: 'available',
-      rating: 4.3,
-      borrowCount: 223,
-      description: 'A story about Holden Caulfield\'s experiences in New York City after being expelled from prep school.',
-      language: 'English',
-      pages: 277,
-      location: 'Shelf B1-07',
-      coverColor: '#ef4444',
-    },
-    {
-      id: 6,
-      title: 'Python Crash Course',
-      author: 'Eric Matthes',
-      isbn: '9781593279288',
-      genre: 'programming',
-      year: 2019,
-      publisher: 'No Starch Press',
-      totalCopies: 10,
-      availableCopies: 6,
-      status: 'available',
-      rating: 4.9,
-      borrowCount: 156,
-      description: 'A hands-on, project-based introduction to programming using Python.',
-      language: 'English',
-      pages: 544,
-      location: 'Shelf C1-01',
-      coverColor: '#3b82f6',
-    },
-    {
-      id: 7,
-      title: 'Clean Code',
-      author: 'Robert C. Martin',
-      isbn: '9780132350884',
-      genre: 'programming',
-      year: 2008,
-      publisher: 'Prentice Hall',
-      totalCopies: 5,
-      availableCopies: 2,
-      status: 'available',
-      rating: 4.8,
-      borrowCount: 189,
-      description: 'A handbook of agile software craftsmanship that guides developers to write better code.',
-      language: 'English',
-      pages: 464,
-      location: 'Shelf C1-02',
-      coverColor: '#6366f1',
-    },
-    {
-      id: 8,
-      title: 'The Design of Everyday Things',
-      author: 'Don Norman',
-      isbn: '9780465050659',
-      genre: 'science',
-      year: 2013,
-      publisher: 'Basic Books',
-      totalCopies: 4,
-      availableCopies: 3,
-      status: 'available',
-      rating: 4.7,
-      borrowCount: 134,
-      description: 'A guide to human-centered design principles for creating intuitive and user-friendly products.',
-      language: 'English',
-      pages: 368,
-      location: 'Shelf D1-04',
-      coverColor: '#8b5cf6',
-    },
-    {
-      id: 9,
-      title: 'Sapiens: A Brief History of Humankind',
-      author: 'Yuval Noah Harari',
-      isbn: '9780062316097',
-      genre: 'history',
-      year: 2015,
-      publisher: 'Harper',
-      totalCopies: 7,
-      availableCopies: 0,
-      status: 'unavailable',
-      rating: 4.6,
-      borrowCount: 278,
-      description: 'An exploration of the history of humankind from the Stone Age to the 21st century.',
-      language: 'English',
-      pages: 443,
-      location: 'Shelf E2-01',
-      coverColor: '#f59e0b',
-    },
-    {
-      id: 10,
-      title: 'Atomic Habits',
-      author: 'James Clear',
-      isbn: '9780735211292',
-      genre: 'science',
-      year: 2018,
-      publisher: 'Avery',
-      totalCopies: 6,
-      availableCopies: 2,
-      status: 'available',
-      rating: 4.8,
-      borrowCount: 167,
-      description: 'A proven framework for building good habits and breaking bad ones.',
-      language: 'English',
-      pages: 320,
-      location: 'Shelf F1-03',
-      coverColor: '#14b8a6',
-    },
-    {
-      id: 11,
-      title: 'The Alchemist',
-      author: 'Paulo Coelho',
-      isbn: '9780062315007',
-      genre: 'fiction',
-      year: 1988,
-      publisher: 'HarperOne',
-      totalCopies: 8,
-      availableCopies: 3,
-      status: 'available',
-      rating: 4.5,
-      borrowCount: 345,
-      description: 'A philosophical novel about following one\'s dreams and listening to one\'s heart.',
-      language: 'Portuguese',
-      pages: 208,
-      location: 'Shelf A3-02',
-      coverColor: '#f97316',
-    },
-    {
-      id: 12,
-      title: 'Thinking, Fast and Slow',
-      author: 'Daniel Kahneman',
-      isbn: '9780374533557',
-      genre: 'science',
-      year: 2011,
-      publisher: 'Farrar, Straus and Giroux',
-      totalCopies: 5,
-      availableCopies: 1,
-      status: 'available',
-      rating: 4.7,
-      borrowCount: 198,
-      description: 'A book about two systems that drive the way we think and make decisions.',
-      language: 'English',
-      pages: 499,
-      location: 'Shelf G1-05',
-      coverColor: '#0d9488',
-    },
-  ];
-
   // Filter books
-  const filteredBooks = mockBooks.filter(book => {
-    const matchesSearch = 
+  const filteredBooks = books.filter(book => {
+    const matchesSearch =
       book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       book.author.toLowerCase().includes(searchQuery.toLowerCase()) ||
       book.isbn.includes(searchQuery) ||
       book.publisher.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     const matchesGenre = selectedGenre === 'All' || book.genre === selectedGenre;
     const matchesStatus = selectedStatus === 'All' || book.status === selectedStatus;
-    
+
     return matchesSearch && matchesGenre && matchesStatus;
   }).sort((a, b) => {
-    switch(sortBy) {
+    switch (sortBy) {
       case 'title': return a.title.localeCompare(b.title);
       case 'author': return a.author.localeCompare(b.author);
       case 'year': return b.year - a.year;
@@ -323,14 +145,14 @@ export default function BooksPage() {
   });
 
   // Get unique genres and statuses
-  const genres = ['All', ...new Set(mockBooks.map(book => book.genre))];
+  const genres = ['All', ...new Set(books.map(book => book.genre))];
   const statuses = ['All', 'available', 'unavailable', 'reserved'];
 
   // Calculate stats
-  const totalBooks = mockBooks.length;
-  const availableBooks = mockBooks.filter(b => b.status === 'available').length;
-  const totalBorrows = mockBooks.reduce((sum, book) => sum + book.borrowCount, 0);
-  const uniqueGenres = [...new Set(mockBooks.map(book => book.genre))].length;
+  const totalBooks = books.length;
+  const availableBooks = books.filter(b => b.status === 'available').length;
+  const totalBorrows = books.reduce((sum, book) => sum + book.borrowCount, 0);
+  const uniqueGenres = [...new Set(books.map(book => book.genre))].length;
 
   // Styles
   const styles = {
@@ -511,7 +333,7 @@ export default function BooksPage() {
       alignItems: 'center',
       justifyContent: 'center',
       fontSize: '48px',
-      position: 'relative',
+      position: 'relative' as const,
     },
     bookInfo: {
       padding: '24px',
@@ -561,33 +383,29 @@ export default function BooksPage() {
       letterSpacing: '0.5px',
     },
     genreBadge: (genre: string) => ({
-      background: `linear-gradient(135deg, ${
-        genre === 'fiction' ? colors.fiction :
+      background: `linear-gradient(135deg, ${genre === 'fiction' ? colors.fiction :
         genre === 'programming' ? colors.programming :
-        genre === 'science' ? colors.science :
-        genre === 'history' ? colors.history :
-        genre === 'romance' ? colors.romance :
-        colors.fantasy
-      }, ${
-        genre === 'fiction' ? colors.fiction :
-        genre === 'programming' ? colors.programming :
-        genre === 'science' ? colors.science :
-        genre === 'history' ? colors.history :
-        genre === 'romance' ? colors.romance :
-        colors.fantasy
-      }dd)`,
+          genre === 'science' ? colors.science :
+            genre === 'history' ? colors.history :
+              genre === 'romance' ? colors.romance :
+                colors.fantasy
+        }, ${genre === 'fiction' ? colors.fiction :
+          genre === 'programming' ? colors.programming :
+            genre === 'science' ? colors.science :
+              genre === 'history' ? colors.history :
+                genre === 'romance' ? colors.romance :
+                  colors.fantasy
+        }dd)`,
       color: 'white',
     }),
     statusBadge: (status: string) => ({
-      background: `linear-gradient(135deg, ${
-        status === 'available' ? colors.secondary :
+      background: `linear-gradient(135deg, ${status === 'available' ? colors.secondary :
         status === 'unavailable' ? colors.danger :
-        colors.warning
-      }, ${
-        status === 'available' ? colors.secondary :
-        status === 'unavailable' ? colors.danger :
-        colors.warning
-      }dd)`,
+          colors.warning
+        }, ${status === 'available' ? colors.secondary :
+          status === 'unavailable' ? colors.danger :
+            colors.warning
+        }dd)`,
       color: 'white',
     }),
     progressBar: {
@@ -663,7 +481,7 @@ export default function BooksPage() {
 
   // Get genre label
   const getGenreLabel = (genre: string) => {
-    switch(genre) {
+    switch (genre) {
       case 'fiction': return 'Fiction';
       case 'programming': return 'Programming';
       case 'science': return 'Science';
@@ -676,7 +494,7 @@ export default function BooksPage() {
 
   // Get status label
   const getStatusLabel = (status: string) => {
-    switch(status) {
+    switch (status) {
       case 'available': return 'Available';
       case 'unavailable': return 'Unavailable';
       case 'reserved': return 'Reserved';
@@ -686,8 +504,8 @@ export default function BooksPage() {
 
   // Toggle book selection
   const toggleBookSelection = (id: number) => {
-    setSelectedBooks(prev => 
-      prev.includes(id) 
+    setSelectedBooks(prev =>
+      prev.includes(id)
         ? prev.filter(bookId => bookId !== id)
         : [...prev, id]
     );
@@ -709,8 +527,8 @@ export default function BooksPage() {
       alert('Please select books first');
       return;
     }
-    
-    switch(action) {
+
+    switch (action) {
       case 'export':
         alert(`Exporting ${selectedBooks.length} books...`);
         break;
@@ -735,6 +553,27 @@ export default function BooksPage() {
     setSelectedBooks([]);
   };
 
+  if (loading) {
+    return (
+      <div style={{ ...styles.container, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div style={{ fontSize: '24px', fontWeight: 'bold', color: colors.primary }}>
+          ⌛ Loading your library...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ ...styles.container, display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+        <div style={{ fontSize: '48px', marginBottom: '20px' }}>⚠️</div>
+        <h2 style={{ color: colors.danger, marginBottom: '10px' }}>Error Loading Books</h2>
+        <p style={{ color: colors.textSecondary, marginBottom: '20px' }}>{error}</p>
+        <button onClick={fetchBooks} style={styles.button}>🔄 Try Again</button>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.container}>
       {/* Header */}
@@ -743,10 +582,10 @@ export default function BooksPage() {
           <h1 style={styles.title}>📚 Book Catalog</h1>
           <p style={styles.subtitle}>
             Browse and manage the library collection
-            <span style={{ 
-              marginLeft: '12px', 
-              fontSize: '14px', 
-              padding: '4px 12px', 
+            <span style={{
+              marginLeft: '12px',
+              fontSize: '14px',
+              padding: '4px 12px',
               background: `linear-gradient(135deg, ${colors.primary}20, ${colors.purple}20)`,
               borderRadius: '20px',
               border: `1px solid ${colors.primary}40`
@@ -756,7 +595,7 @@ export default function BooksPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <button 
+          <button
             onClick={() => setDarkMode(!darkMode)}
             style={{
               ...styles.outlineButton,
@@ -766,7 +605,7 @@ export default function BooksPage() {
           >
             {darkMode ? '☀️ Light' : '🌙 Dark'}
           </button>
-          <Link 
+          <Link
             href="/books/add"
             style={styles.button}
           >
@@ -779,7 +618,7 @@ export default function BooksPage() {
       <div style={styles.statsContainer}>
         <div style={styles.statCard}>
           <p style={styles.statTitle}>📚 Total Books</p>
-          <p style={{ 
+          <p style={{
             ...styles.statValue,
             background: `linear-gradient(135deg, ${colors.primary}, ${colors.purple})`,
             WebkitBackgroundClip: 'text',
@@ -787,8 +626,8 @@ export default function BooksPage() {
           }}>
             {totalBooks}
           </p>
-          <div style={{ 
-            fontSize: '13px', 
+          <div style={{
+            fontSize: '13px',
             color: colors.textSecondary,
             display: 'flex',
             alignItems: 'center',
@@ -800,7 +639,7 @@ export default function BooksPage() {
         </div>
         <div style={styles.statCard}>
           <p style={styles.statTitle}>✅ Available Now</p>
-          <p style={{ 
+          <p style={{
             ...styles.statValue,
             background: `linear-gradient(135deg, ${colors.secondary}, ${colors.teal})`,
             WebkitBackgroundClip: 'text',
@@ -808,8 +647,8 @@ export default function BooksPage() {
           }}>
             {availableBooks}
           </p>
-          <div style={{ 
-            fontSize: '13px', 
+          <div style={{
+            fontSize: '13px',
             color: colors.textSecondary,
             display: 'flex',
             alignItems: 'center',
@@ -821,7 +660,7 @@ export default function BooksPage() {
         </div>
         <div style={styles.statCard}>
           <p style={styles.statTitle}>📖 Total Borrows</p>
-          <p style={{ 
+          <p style={{
             ...styles.statValue,
             background: `linear-gradient(135deg, ${colors.teal}, ${colors.secondary})`,
             WebkitBackgroundClip: 'text',
@@ -829,8 +668,8 @@ export default function BooksPage() {
           }}>
             {totalBorrows}
           </p>
-          <div style={{ 
-            fontSize: '13px', 
+          <div style={{
+            fontSize: '13px',
             color: colors.textSecondary,
             display: 'flex',
             alignItems: 'center',
@@ -842,7 +681,7 @@ export default function BooksPage() {
         </div>
         <div style={styles.statCard}>
           <p style={styles.statTitle}>📂 Genres</p>
-          <p style={{ 
+          <p style={{
             ...styles.statValue,
             background: `linear-gradient(135deg, ${colors.purple}, ${colors.pink})`,
             WebkitBackgroundClip: 'text',
@@ -850,8 +689,8 @@ export default function BooksPage() {
           }}>
             {uniqueGenres}
           </p>
-          <div style={{ 
-            fontSize: '13px', 
+          <div style={{
+            fontSize: '13px',
             color: colors.textSecondary,
             display: 'flex',
             alignItems: 'center',
@@ -867,9 +706,9 @@ export default function BooksPage() {
       {selectedBooks.length > 0 && (
         <div style={styles.bulkActions}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              width: '40px', 
-              height: '40px', 
+            <div style={{
+              width: '40px',
+              height: '40px',
               borderRadius: '50%',
               background: `linear-gradient(135deg, ${colors.primary}, ${colors.purple})`,
               display: 'flex',
@@ -890,19 +729,19 @@ export default function BooksPage() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <button 
+            <button
               onClick={() => handleBulkAction('export')}
               style={styles.secondaryButton}
             >
               📥 Export Selected
             </button>
-            <button 
+            <button
               onClick={() => handleBulkAction('print')}
               style={styles.button}
             >
               🖨️ Print Labels
             </button>
-            <button 
+            <button
               onClick={() => handleBulkAction('delete')}
               style={{
                 ...styles.button,
@@ -911,7 +750,7 @@ export default function BooksPage() {
             >
               🗑️ Delete Selected
             </button>
-            <button 
+            <button
               onClick={() => setSelectedBooks([])}
               style={styles.outlineButton}
             >
@@ -927,7 +766,7 @@ export default function BooksPage() {
           <h2 style={styles.sectionTitle}>
             🔍 Search & Filter Books
           </h2>
-          <button 
+          <button
             onClick={() => setShowFilters(!showFilters)}
             style={styles.outlineButton}
           >
@@ -963,7 +802,7 @@ export default function BooksPage() {
             <option value="rating">Sort by: Rating</option>
             <option value="borrowCount">Sort by: Popularity</option>
           </select>
-          <button 
+          <button
             onClick={resetFilters}
             style={styles.outlineButton}
           >
@@ -973,7 +812,7 @@ export default function BooksPage() {
 
         {/* View Toggle */}
         <div style={styles.filterContainer}>
-          <button 
+          <button
             onClick={() => setViewMode('grid')}
             style={{
               ...styles.filterButton,
@@ -982,7 +821,7 @@ export default function BooksPage() {
           >
             📱 Grid View
           </button>
-          <button 
+          <button
             onClick={() => setViewMode('list')}
             style={{
               ...styles.filterButton,
@@ -995,8 +834,8 @@ export default function BooksPage() {
 
         {/* Filters */}
         {showFilters && (
-          <div style={{ 
-            padding: '24px', 
+          <div style={{
+            padding: '24px',
             backgroundColor: darkMode ? '#374151' : '#f9fafb',
             borderRadius: '12px',
             marginTop: '16px',
@@ -1015,31 +854,29 @@ export default function BooksPage() {
                       style={{
                         ...styles.filterButton,
                         ...(selectedGenre === genre ? {
-                          background: `linear-gradient(135deg, ${
-                            genre === 'All' ? colors.primary :
+                          background: `linear-gradient(135deg, ${genre === 'All' ? colors.primary :
                             genre === 'fiction' ? colors.fiction :
-                            genre === 'programming' ? colors.programming :
-                            genre === 'science' ? colors.science :
-                            genre === 'history' ? colors.history :
-                            genre === 'romance' ? colors.romance :
-                            colors.fantasy
-                          }, ${
-                            genre === 'All' ? colors.purple :
-                            genre === 'fiction' ? colors.fiction :
-                            genre === 'programming' ? colors.programming :
-                            genre === 'science' ? colors.science :
-                            genre === 'history' ? colors.history :
-                            genre === 'romance' ? colors.romance :
-                            colors.fantasy
-                          })`,
+                              genre === 'programming' ? colors.programming :
+                                genre === 'science' ? colors.science :
+                                  genre === 'history' ? colors.history :
+                                    genre === 'romance' ? colors.romance :
+                                      colors.fantasy
+                            }, ${genre === 'All' ? colors.purple :
+                              genre === 'fiction' ? colors.fiction :
+                                genre === 'programming' ? colors.programming :
+                                  genre === 'science' ? colors.science :
+                                    genre === 'history' ? colors.history :
+                                      genre === 'romance' ? colors.romance :
+                                        colors.fantasy
+                            })`,
                           color: 'white',
                           borderColor: genre === 'All' ? colors.primary :
-                                    genre === 'fiction' ? colors.fiction :
-                                    genre === 'programming' ? colors.programming :
-                                    genre === 'science' ? colors.science :
-                                    genre === 'history' ? colors.history :
+                            genre === 'fiction' ? colors.fiction :
+                              genre === 'programming' ? colors.programming :
+                                genre === 'science' ? colors.science :
+                                  genre === 'history' ? colors.history :
                                     genre === 'romance' ? colors.romance :
-                                    colors.fantasy,
+                                      colors.fantasy,
                         } : {})
                       }}
                     >
@@ -1062,22 +899,20 @@ export default function BooksPage() {
                       style={{
                         ...styles.filterButton,
                         ...(selectedStatus === status ? {
-                          background: `linear-gradient(135deg, ${
-                            status === 'All' ? colors.primary :
+                          background: `linear-gradient(135deg, ${status === 'All' ? colors.primary :
                             status === 'available' ? colors.secondary :
-                            status === 'unavailable' ? colors.danger :
-                            colors.warning
-                          }, ${
-                            status === 'All' ? colors.purple :
-                            status === 'available' ? colors.secondary :
-                            status === 'unavailable' ? colors.danger :
-                            colors.warning
-                          })`,
+                              status === 'unavailable' ? colors.danger :
+                                colors.warning
+                            }, ${status === 'All' ? colors.purple :
+                              status === 'available' ? colors.secondary :
+                                status === 'unavailable' ? colors.danger :
+                                  colors.warning
+                            })`,
                           color: 'white',
                           borderColor: status === 'All' ? colors.primary :
-                                    status === 'available' ? colors.secondary :
-                                    status === 'unavailable' ? colors.danger :
-                                    colors.warning,
+                            status === 'available' ? colors.secondary :
+                              status === 'unavailable' ? colors.danger :
+                                colors.warning,
                         } : {})
                       }}
                     >
@@ -1091,10 +926,10 @@ export default function BooksPage() {
         )}
 
         {/* Results Info */}
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           marginTop: '24px',
           paddingTop: '16px',
           borderTop: `1px solid ${colors.border}`
@@ -1127,7 +962,7 @@ export default function BooksPage() {
             No books found
           </h3>
           <p style={{ marginBottom: '24px' }}>Try adjusting your search or filters</p>
-          <button 
+          <button
             onClick={resetFilters}
             style={styles.button}
           >
@@ -1139,7 +974,7 @@ export default function BooksPage() {
         <div style={styles.gridContainer}>
           {filteredBooks.map(book => {
             const availabilityPercentage = (book.availableCopies / book.totalCopies) * 100;
-            
+
             return (
               <div key={book.id} style={styles.bookCard}>
                 {/* Book Cover */}
@@ -1150,27 +985,27 @@ export default function BooksPage() {
                     checked={selectedBooks.includes(book.id)}
                     onChange={() => toggleBookSelection(book.id)}
                     style={{
-                      position: 'absolute',
+                      position: 'absolute' as const,
                       top: '16px',
                       right: '16px',
                       transform: 'scale(1.3)',
                     }}
                   />
-                  
+
                   {/* Book Icon */}
                   <div style={{ fontSize: '64px', opacity: 0.8 }}>📚</div>
-                  
+
                   {/* Status Badge */}
-                  <div style={{ position: 'absolute', bottom: '16px', left: '16px' }}>
+                  <div style={{ position: 'absolute' as const, bottom: '16px', left: '16px' }}>
                     <span style={{ ...styles.badge, ...styles.statusBadge(book.status), fontSize: '11px' }}>
                       {getStatusLabel(book.status)}
                     </span>
                   </div>
-                  
+
                   {/* Rating */}
-                  <div style={{ 
-                    position: 'absolute', 
-                    bottom: '16px', 
+                  <div style={{
+                    position: 'absolute' as const,
+                    bottom: '16px',
                     right: '16px',
                     backgroundColor: 'rgba(0,0,0,0.6)',
                     color: 'white',
@@ -1233,8 +1068,8 @@ export default function BooksPage() {
                     <div style={styles.progressBar}>
                       <div style={styles.progressFill(
                         availabilityPercentage,
-                        availabilityPercentage > 50 ? colors.secondary : 
-                        availabilityPercentage > 20 ? colors.warning : colors.danger
+                        availabilityPercentage > 50 ? colors.secondary :
+                          availabilityPercentage > 20 ? colors.warning : colors.danger
                       )} />
                     </div>
                     <div style={styles.detailRow}>
@@ -1246,8 +1081,8 @@ export default function BooksPage() {
                   </div>
 
                   {/* Description */}
-                  <div style={{ 
-                    fontSize: '13px', 
+                  <div style={{
+                    fontSize: '13px',
                     color: colors.textSecondary,
                     lineHeight: '1.5',
                     marginBottom: '20px',
@@ -1309,8 +1144,8 @@ export default function BooksPage() {
               <tbody>
                 {filteredBooks.map(book => (
                   <tr key={book.id} style={{
-                    backgroundColor: selectedBooks.includes(book.id) 
-                      ? (darkMode ? '#1e3a8a20' : '#dbeafe') 
+                    backgroundColor: selectedBooks.includes(book.id)
+                      ? (darkMode ? '#1e3a8a20' : '#dbeafe')
                       : 'transparent',
                   }}>
                     <td style={styles.td}>
@@ -1322,9 +1157,9 @@ export default function BooksPage() {
                           style={{ transform: 'scale(1.1)' }}
                         />
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ 
-                            width: '40px', 
-                            height: '40px', 
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
                             borderRadius: '8px',
                             backgroundColor: book.coverColor,
                             display: 'flex',
@@ -1425,8 +1260,8 @@ export default function BooksPage() {
           📚 Library Catalog • {availableBooks} available • Last updated: Today
         </p>
         <p style={{ margin: 0 }}>
-          Need to import books in bulk? Use the <Link href="/import" style={{ 
-            color: colors.primary, 
+          Need to import books in bulk? Use the <Link href="/import" style={{
+            color: colors.primary,
             textDecoration: 'none',
             fontWeight: 500,
           }}>Import Tool</Link>

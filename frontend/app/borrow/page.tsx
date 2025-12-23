@@ -1,98 +1,100 @@
 // app/borrow/page.tsx
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import BorrowBookForm from '@/app/borrow/BorrowBookForm';
 import QuickBorrowCard from '@/app/borrow/QuickBorrowCard';
 import RecentBorrowsTable from '@/app/borrow/RecentBorrowsTable';
 import SearchBooksSection from '@/app/borrow/SearchBooksSection';
 import OverdueAlerts from '@/app/borrow/OverdueAlerts';
+import { bookAPI, memberAPI, transactionAPI } from '@/lib/api';
 
 // Mock data for books
 const mockBooks = [
-  { 
-    id: 1, 
-    title: "The Great Gatsby", 
-    author: "F. Scott Fitzgerald", 
-    isbn: "9780743273565", 
-    availableCopies: 3, 
+  {
+    id: 1,
+    title: "The Great Gatsby",
+    author: "F. Scott Fitzgerald",
+    isbn: "9780743273565",
+    availableCopies: 3,
     totalCopies: 5,
     genre: "Fiction",
     publisher: "Scribner",
     year: 1925
   },
-  { 
-    id: 2, 
-    title: "To Kill a Mockingbird", 
-    author: "Harper Lee", 
-    isbn: "9780061120084", 
-    availableCopies: 2, 
+  {
+    id: 2,
+    title: "To Kill a Mockingbird",
+    author: "Harper Lee",
+    isbn: "9780061120084",
+    availableCopies: 2,
     totalCopies: 4,
     genre: "Fiction",
     publisher: "J.B. Lippincott & Co.",
     year: 1960
   },
-  { 
-    id: 3, 
-    title: "1984", 
-    author: "George Orwell", 
-    isbn: "9780451524935", 
-    availableCopies: 5, 
+  {
+    id: 3,
+    title: "1984",
+    author: "George Orwell",
+    isbn: "9780451524935",
+    availableCopies: 5,
     totalCopies: 8,
     genre: "Dystopian",
     publisher: "Secker & Warburg",
     year: 1949
   },
-  { 
-    id: 4, 
-    title: "Pride and Prejudice", 
-    author: "Jane Austen", 
-    isbn: "9780141439518", 
-    availableCopies: 1, 
+  {
+    id: 4,
+    title: "Pride and Prejudice",
+    author: "Jane Austen",
+    isbn: "9780141439518",
+    availableCopies: 1,
     totalCopies: 3,
     genre: "Romance",
     publisher: "T. Egerton",
     year: 1813
   },
-  { 
-    id: 5, 
-    title: "The Catcher in the Rye", 
-    author: "J.D. Salinger", 
-    isbn: "9780316769488", 
-    availableCopies: 4, 
+  {
+    id: 5,
+    title: "The Catcher in the Rye",
+    author: "J.D. Salinger",
+    isbn: "9780316769488",
+    availableCopies: 4,
     totalCopies: 6,
     genre: "Fiction",
     publisher: "Little, Brown and Company",
     year: 1951
   },
-  { 
-    id: 6, 
-    title: "Python Crash Course", 
-    author: "Eric Matthes", 
-    isbn: "9781593279288", 
-    availableCopies: 6, 
+  {
+    id: 6,
+    title: "Python Crash Course",
+    author: "Eric Matthes",
+    isbn: "9781593279288",
+    availableCopies: 6,
     totalCopies: 10,
     genre: "Programming",
     publisher: "No Starch Press",
     year: 2019
   },
-  { 
-    id: 7, 
-    title: "Clean Code", 
-    author: "Robert C. Martin", 
-    isbn: "9780132350884", 
-    availableCopies: 2, 
+  {
+    id: 7,
+    title: "Clean Code",
+    author: "Robert C. Martin",
+    isbn: "9780132350884",
+    availableCopies: 2,
     totalCopies: 5,
     genre: "Programming",
     publisher: "Prentice Hall",
     year: 2008
   },
-  { 
-    id: 8, 
-    title: "The Design of Everyday Things", 
-    author: "Don Norman", 
-    isbn: "9780465050659", 
-    availableCopies: 3, 
+  {
+    id: 8,
+    title: "The Design of Everyday Things",
+    author: "Don Norman",
+    isbn: "9780465050659",
+    availableCopies: 3,
     totalCopies: 4,
     genre: "Design",
     publisher: "Basic Books",
@@ -102,57 +104,57 @@ const mockBooks = [
 
 // Mock data for members
 const mockMembers = [
-  { 
-    id: 1, 
-    name: "John Doe", 
-    email: "john@example.com", 
-    membershipId: "MEM2024001", 
-    maxBooks: 5, 
-    currentBorrowed: 2, 
+  {
+    id: 1,
+    name: "John Doe",
+    email: "john@example.com",
+    membershipId: "MEM2024001",
+    maxBooks: 5,
+    currentBorrowed: 2,
     status: "Active",
     phone: "+91 9876543210",
     joinDate: "2024-01-15"
   },
-  { 
-    id: 2, 
-    name: "Jane Smith", 
-    email: "jane@example.com", 
-    membershipId: "MEM2024002", 
-    maxBooks: 5, 
-    currentBorrowed: 1, 
+  {
+    id: 2,
+    name: "Jane Smith",
+    email: "jane@example.com",
+    membershipId: "MEM2024002",
+    maxBooks: 5,
+    currentBorrowed: 1,
     status: "Active",
     phone: "+91 9876543211",
     joinDate: "2024-01-10"
   },
-  { 
-    id: 3, 
-    name: "Bob Johnson", 
-    email: "bob@example.com", 
-    membershipId: "MEM2024003", 
-    maxBooks: 3, 
-    currentBorrowed: 3, 
+  {
+    id: 3,
+    name: "Bob Johnson",
+    email: "bob@example.com",
+    membershipId: "MEM2024003",
+    maxBooks: 3,
+    currentBorrowed: 3,
     status: "Limit Reached",
     phone: "+91 9876543212",
     joinDate: "2024-01-05"
   },
-  { 
-    id: 4, 
-    name: "Alice Brown", 
-    email: "alice@example.com", 
-    membershipId: "MEM2024004", 
-    maxBooks: 5, 
-    currentBorrowed: 0, 
+  {
+    id: 4,
+    name: "Alice Brown",
+    email: "alice@example.com",
+    membershipId: "MEM2024004",
+    maxBooks: 5,
+    currentBorrowed: 0,
     status: "Active",
     phone: "+91 9876543213",
     joinDate: "2024-01-20"
   },
-  { 
-    id: 5, 
-    name: "Charlie Wilson", 
-    email: "charlie@example.com", 
-    membershipId: "MEM2024005", 
-    maxBooks: 5, 
-    currentBorrowed: 4, 
+  {
+    id: 5,
+    name: "Charlie Wilson",
+    email: "charlie@example.com",
+    membershipId: "MEM2024005",
+    maxBooks: 5,
+    currentBorrowed: 4,
     status: "Active",
     phone: "+91 9876543214",
     joinDate: "2023-12-15"
@@ -161,75 +163,75 @@ const mockMembers = [
 
 // Mock data for recent transactions
 const recentTransactions = [
-  { 
-    id: 1, 
-    memberName: "John Doe", 
-    bookTitle: "The Great Gatsby", 
-    borrowDate: "2024-01-15", 
-    dueDate: "2024-01-29", 
+  {
+    id: 1,
+    memberName: "John Doe",
+    bookTitle: "The Great Gatsby",
+    borrowDate: "2024-01-15",
+    dueDate: "2024-01-29",
     status: "Active" as const,
     transactionId: "TXN001"
   },
-  { 
-    id: 2, 
-    memberName: "Jane Smith", 
-    bookTitle: "1984", 
-    borrowDate: "2024-01-14", 
-    dueDate: "2024-01-28", 
+  {
+    id: 2,
+    memberName: "Jane Smith",
+    bookTitle: "1984",
+    borrowDate: "2024-01-14",
+    dueDate: "2024-01-28",
     status: "Active" as const,
     transactionId: "TXN002"
   },
-  { 
-    id: 3, 
-    memberName: "Alice Brown", 
-    bookTitle: "Pride and Prejudice", 
-    borrowDate: "2024-01-13", 
-    dueDate: "2024-01-27", 
+  {
+    id: 3,
+    memberName: "Alice Brown",
+    bookTitle: "Pride and Prejudice",
+    borrowDate: "2024-01-13",
+    dueDate: "2024-01-27",
     status: "Returned" as const,
     transactionId: "TXN003"
   },
-  { 
-    id: 4, 
-    memberName: "Charlie Wilson", 
-    bookTitle: "The Catcher in the Rye", 
-    borrowDate: "2024-01-12", 
-    dueDate: "2024-01-26", 
+  {
+    id: 4,
+    memberName: "Charlie Wilson",
+    bookTitle: "The Catcher in the Rye",
+    borrowDate: "2024-01-12",
+    dueDate: "2024-01-26",
     status: "Overdue" as const,
     transactionId: "TXN004"
   },
-  { 
-    id: 5, 
-    memberName: "David Miller", 
-    bookTitle: "To Kill a Mockingbird", 
-    borrowDate: "2024-01-10", 
-    dueDate: "2024-02-10", 
+  {
+    id: 5,
+    memberName: "David Miller",
+    bookTitle: "To Kill a Mockingbird",
+    borrowDate: "2024-01-10",
+    dueDate: "2024-02-10",
     status: "Renewed" as const,
     transactionId: "TXN005"
   },
-  { 
-    id: 6, 
-    memberName: "Emma Wilson", 
-    bookTitle: "Python Programming", 
-    borrowDate: "2024-01-18", 
-    dueDate: "2024-02-01", 
+  {
+    id: 6,
+    memberName: "Emma Wilson",
+    bookTitle: "Python Programming",
+    borrowDate: "2024-01-18",
+    dueDate: "2024-02-01",
     status: "Active" as const,
     transactionId: "TXN006"
   },
-  { 
-    id: 7, 
-    memberName: "Robert Brown", 
-    bookTitle: "Clean Code", 
-    borrowDate: "2024-01-16", 
-    dueDate: "2024-01-30", 
+  {
+    id: 7,
+    memberName: "Robert Brown",
+    bookTitle: "Clean Code",
+    borrowDate: "2024-01-16",
+    dueDate: "2024-01-30",
     status: "Active" as const,
     transactionId: "TXN007"
   },
-  { 
-    id: 8, 
-    memberName: "Sarah Johnson", 
-    bookTitle: "The Design of Everyday Things", 
-    borrowDate: "2024-01-17", 
-    dueDate: "2024-01-31", 
+  {
+    id: 8,
+    memberName: "Sarah Johnson",
+    bookTitle: "The Design of Everyday Things",
+    borrowDate: "2024-01-17",
+    dueDate: "2024-01-31",
     status: "Active" as const,
     transactionId: "TXN008"
   },
@@ -254,9 +256,43 @@ const popularBooks = [
 ];
 
 export default function BorrowPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'borrow' | 'history'>('borrow');
   const [showBulkBorrow, setShowBulkBorrow] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [realStats, setRealStats] = useState({ totalBooks: 0, activeMembers: 0, todayBorrows: 0, overdue: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      // Auth Check
+      const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const [booksData, membersData, overdueData] = await Promise.all([
+          bookAPI.getBooks({ page_size: 1 }),
+          memberAPI.getMembers(1, 1),
+          transactionAPI.getOverdue() as Promise<any>
+        ]);
+        setRealStats({
+          totalBooks: booksData.total,
+          activeMembers: membersData.total,
+          todayBorrows: 12, // Placeholder
+          overdue: overdueData.overdue_books_count || 0
+        });
+      } catch (error) {
+        console.error("Error fetching borrow stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, [router]);
 
   const handleBulkBorrow = () => {
     setShowBulkBorrow(true);
@@ -279,21 +315,21 @@ export default function BorrowPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Borrow Management</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Issue books to members and manage borrowing transactions. 
+            Issue books to members and manage borrowing transactions.
             <span className="ml-2 text-sm px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded">
               Real-time updates
             </span>
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <button 
+          <button
             onClick={handleBulkBorrow}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center transition-colors shadow-md hover:shadow-lg"
           >
             <span className="mr-2">📋</span> Bulk Borrow
             <span className="ml-2 text-xs bg-blue-800 px-2 py-0.5 rounded">New</span>
           </button>
-          <button 
+          <button
             onClick={handleGenerateReport}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center transition-colors shadow-md hover:shadow-lg"
           >
@@ -310,22 +346,20 @@ export default function BorrowPage() {
         <div className="flex space-x-8">
           <button
             onClick={() => setActiveTab('borrow')}
-            className={`pb-3 px-1 font-medium text-sm border-b-2 transition-colors ${
-              activeTab === 'borrow'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-            }`}
+            className={`pb-3 px-1 font-medium text-sm border-b-2 transition-colors ${activeTab === 'borrow'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
           >
             <span className="mr-2">📖</span>
             Borrow Books
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`pb-3 px-1 font-medium text-sm border-b-2 transition-colors ${
-              activeTab === 'history'
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
-            }`}
+            className={`pb-3 px-1 font-medium text-sm border-b-2 transition-colors ${activeTab === 'history'
+              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+              : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
           >
             <span className="mr-2">📋</span>
             Borrowing History
@@ -367,8 +401,8 @@ export default function BorrowPage() {
                   <span className="text-xl">📚</span>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Available Books</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">{mockBooks.length}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Books</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{loading ? '...' : realStats.totalBooks}</p>
                 </div>
               </div>
             </div>
@@ -378,8 +412,8 @@ export default function BorrowPage() {
                   <span className="text-xl">👥</span>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Active Members</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">{mockMembers.filter(m => m.status === 'Active').length}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Total Members</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{loading ? '...' : realStats.activeMembers}</p>
                 </div>
               </div>
             </div>
@@ -390,7 +424,7 @@ export default function BorrowPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Today's Borrows</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">{todaySummary.booksBorrowed}</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{loading ? '...' : realStats.todayBorrows}</p>
                 </div>
               </div>
             </div>
@@ -401,7 +435,7 @@ export default function BorrowPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Overdue</p>
-                  <p className="text-xl font-bold text-gray-900 dark:text-white">{todaySummary.overdueBooks}</p>
+                  <p className="text-xl font-bold text-gray-900 dark:text-white">{loading ? '...' : realStats.overdue}</p>
                 </div>
               </div>
             </div>
@@ -462,8 +496,8 @@ export default function BorrowPage() {
             </div>
             <div className="space-y-3">
               {mockMembers.map(member => (
-                <div 
-                  key={member.id} 
+                <div
+                  key={member.id}
                   className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors cursor-pointer"
                   onClick={() => alert(`Viewing ${member.name}'s profile`)}
                 >
@@ -477,11 +511,10 @@ export default function BorrowPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      member.status === 'Active' 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                    }`}>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${member.status === 'Active'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
                       {member.currentBorrowed}/{member.maxBooks}
                     </span>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -543,12 +576,11 @@ export default function BorrowPage() {
             <div className="space-y-3">
               {popularBooks.map((book, index) => (
                 <div key={book.id} className="flex items-center p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors group">
-                  <div className={`w-8 h-8 flex items-center justify-center rounded-full mr-3 font-medium ${
-                    index === 0 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                  <div className={`w-8 h-8 flex items-center justify-center rounded-full mr-3 font-medium ${index === 0 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
                     index === 1 ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
-                    index === 2 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
-                    'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                  }`}>
+                      index === 2 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
+                        'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+                    }`}>
                     {index + 1}
                   </div>
                   <div className="flex-1">
@@ -557,11 +589,10 @@ export default function BorrowPage() {
                     </p>
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-xs text-gray-600 dark:text-gray-400">{book.borrows} borrows</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        book.available > 2 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${book.available > 2
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                        }`}>
                         {book.available} available
                       </span>
                     </div>
@@ -578,28 +609,28 @@ export default function BorrowPage() {
           <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl shadow-lg p-6 text-white">
             <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
             <div className="grid grid-cols-2 gap-3">
-              <button 
+              <button
                 onClick={() => handleQuickAction('Return Book')}
                 className="p-3 bg-white/10 hover:bg-white/20 rounded-lg flex flex-col items-center transition-colors"
               >
                 <span className="text-2xl mb-2">↩️</span>
                 <span className="text-sm">Return Book</span>
               </button>
-              <button 
+              <button
                 onClick={() => handleQuickAction('Renew Book')}
                 className="p-3 bg-white/10 hover:bg-white/20 rounded-lg flex flex-col items-center transition-colors"
               >
                 <span className="text-2xl mb-2">🔄</span>
                 <span className="text-sm">Renew Book</span>
               </button>
-              <button 
+              <button
                 onClick={() => handleQuickAction('Add Member')}
                 className="p-3 bg-white/10 hover:bg-white/20 rounded-lg flex flex-col items-center transition-colors"
               >
                 <span className="text-2xl mb-2">👤</span>
                 <span className="text-sm">Add Member</span>
               </button>
-              <button 
+              <button
                 onClick={() => handleQuickAction('Scan ISBN')}
                 className="p-3 bg-white/10 hover:bg-white/20 rounded-lg flex flex-col items-center transition-colors"
               >
@@ -654,7 +685,7 @@ export default function BorrowPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Bulk Book Borrowing</h2>
-                <button 
+                <button
                   onClick={() => setShowBulkBorrow(false)}
                   className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
                 >
@@ -679,7 +710,7 @@ export default function BorrowPage() {
                 </button>
               </div>
               <div className="flex justify-end space-x-3 mt-8">
-                <button 
+                <button
                   onClick={() => setShowBulkBorrow(false)}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                 >

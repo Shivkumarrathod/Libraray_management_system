@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { authAPI } from '@/lib/api';
 import Input from '@/components/auth/Input';
 import PasswordInput from '@/components/auth/PasswordInput';
 import Button from '@/components/auth/Button';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -53,37 +56,21 @@ export default function RegisterPage() {
       return;
     }
 
-    // TODO: Replace with actual API call
-    // try {
-    //   const response = await fetch('/api/auth/register', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify({
-    //       name: formData.fullName,
-    //       email: formData.email,
-    //       password: formData.password,
-    //     }),
-    //   });
-    //   const data = await response.json();
-    //   if (response.ok) {
-    //     router.push('/dashboard');
-    //   } else {
-    //     setErrors({ email: data.message || 'Registration failed' });
-    //   }
-    // } catch (error) {
-    //   setErrors({ email: 'An error occurred. Please try again.' });
-    // }
-
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Registration attempt:', {
-        name: formData.fullName,
+    try {
+      await authAPI.register({
         email: formData.email,
         password: formData.password,
+        full_name: formData.fullName,
+        role: 'member', // Default role for registration
       });
+      console.log('Registration successful');
       setIsLoading(false);
-      // router.push('/dashboard');
-    }, 1000);
+      router.push('/login'); // Redirect to login after successful registration
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      setErrors({ email: error.message || 'Registration failed. Please try again.' });
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

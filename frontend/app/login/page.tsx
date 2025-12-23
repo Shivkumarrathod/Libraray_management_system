@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { authAPI } from '@/lib/api';
 import Input from '@/components/auth/Input';
 import PasswordInput from '@/components/auth/PasswordInput';
 import Button from '@/components/auth/Button';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -36,29 +39,16 @@ export default function LoginPage() {
       return;
     }
 
-    // TODO: Replace with actual API call
-    // try {
-    //   const response = await fetch('/api/auth/login', {
-    //     method: 'POST',
-    //     headers: { 'Content-Type': 'application/json' },
-    //     body: JSON.stringify(formData),
-    //   });
-    //   const data = await response.json();
-    //   if (response.ok) {
-    //     router.push('/dashboard');
-    //   } else {
-    //     setErrors({ email: data.message || 'Invalid credentials' });
-    //   }
-    // } catch (error) {
-    //   setErrors({ email: 'An error occurred. Please try again.' });
-    // }
-
-    // Simulate API call
-    setTimeout(() => {
-      console.log('Login attempt:', formData);
+    try {
+      const data = await authAPI.login(formData.email, formData.password);
+      console.log('Login successful:', data);
       setIsLoading(false);
-      // router.push('/dashboard');
-    }, 1000);
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setErrors({ email: error.message || 'Invalid email or password' });
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
