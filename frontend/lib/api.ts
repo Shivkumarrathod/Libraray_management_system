@@ -1,5 +1,8 @@
 // API Configuration
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+// Point directly to backend to avoid potential proxy header stripping issues
+
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
@@ -21,9 +24,9 @@ async function handleResponse(response: Response) {
 // Helper function to make authenticated requests
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
     const token = getAuthToken();
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(options.headers as Record<string, string>),
     };
 
     if (token) {
