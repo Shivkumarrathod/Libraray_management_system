@@ -10,9 +10,9 @@ async def chat(chat_data: ChatRequest):
     return await chat_assistant(chat_data)
 
 @router.post("/query")
-async def query(query_data: QueryRequest):
+async def query(request: QueryRequest):
     """Natural language query to database"""
-    return await query_data(query_data)
+    return await query_data(request)
 
 @router.get("/analytics")
 async def analytics():

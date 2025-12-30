@@ -1,4 +1,4 @@
-from app.cores.database import users_collection
+from app.cores.database import users_collection, members_collection
 from app.schemas.auth_schema import UserRegister, UserLogin
 from app.utils.utils import hash_password, verify_password, create_access_token, generate_reset_token
 from fastapi import HTTPException, status
@@ -12,6 +12,7 @@ async def register_user(user_data: UserRegister):
     """Register a new user"""
     # Check if user already exists
     existing_user = await users_collection.find_one({"email": user_data.email})
+
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -70,6 +71,10 @@ async def login_user(login_data: UserLogin):
     
     # Create access token
     access_token = create_access_token(data={"sub": str(user["_id"])})
+
+    # Get member_id if exists
+    member = await members_collection.find_one({"user_id": str(user["_id"])})
+    member_id = str(member["_id"]) if member else None
     
     return {
         "access_token": access_token,
@@ -78,7 +83,8 @@ async def login_user(login_data: UserLogin):
             "id": str(user["_id"]),
             "email": user["email"],
             "full_name": user["full_name"],
-            "role": user["role"]
+            "role": user["role"],
+            "member_id": member_id
         }
     }
 
